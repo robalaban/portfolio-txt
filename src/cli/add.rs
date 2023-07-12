@@ -9,7 +9,7 @@ pub fn add(matches: &ArgMatches) -> io::Result<()> {
     let purchased_date = matches.value_of("purchased_date").unwrap().to_string();
     let purchase_price: f64 = matches.value_of("purchase_price").unwrap().parse().unwrap();
     let quantity: i32 = matches.value_of("quantity").unwrap().parse().unwrap();
-    let dividend: f64 = matches.value_of("dividend").unwrap().parse().unwrap();
+    let dividend: Option<f64> = matches.value_of("dividend").map(|dividend| dividend.parse().unwrap_or(0.0));
     let dividend_pay_date = matches.value_of("dividend_pay_date").map(String::from);
 
     let new_stock = Stock {
