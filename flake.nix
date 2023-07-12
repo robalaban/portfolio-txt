@@ -2,77 +2,41 @@
   description = "Rust environment";
 
   inputs = {
+    flake-parts = {
+      url = "github:hercules-ci/flake-parts";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
-    naersk.url = "github:nmattia/naersk";
-    naersk.inputs.nixpkgs.follows = "nixpkgs";
   };
 
-  outputs = { self, nixpkgs, naersk }:
-    let
-      cargoToml = (builtins.fromTOML (builtins.readFile ./Cargo.toml));
-      supportedSystems = [ "aarch64-darwin" ];
-      forAllSystems = f: nixpkgs.lib.genAttrs supportedSystems (system: f system);
-    in
-    {
-      overlay = final: prev: {
-        "${cargoToml.package.name}" = final.callPackage ./. { inherit naersk; };
-      };
+  outputs = inputs:
+    inputs.flake-parts.lib.mkFlake { inherit inputs; } {
+      systems = [ "aarch64-darwin" ];
 
-      packages = forAllSystems (system:
-        let
-          pkgs = import nixpkgs {
-            inherit system;
-            overlays = [
-              self.overlay
-            ];
+      perSystem = { pkgs, lib, config, ... }:
+        let inherit (lib.importTOML (inputs.self + "/Cargo.toml")) package;
+        in {
+          packages = {
+            default = pkgs.rustPlatform.buildRustPackage {
+              inherit (package) version;
+
+              cargoLock.lockFile = (inputs.self + "/Cargo.lock");
+              pname = package.name;
+              src = inputs.self;
+            };
           };
-        in
-        {
-          "${cargoToml.package.name}" = pkgs."${cargoToml.package.name}";
-        });
 
-
-      defaultPackage = forAllSystems (system: (import nixpkgs {
-        inherit system;
-        overlays = [ self.overlay ];
-      })."${cargoToml.package.name}");
-
-      checks = forAllSystems (system:
-        let
-          pkgs = import nixpkgs {
-            inherit system;
-            overlays = [
-              self.overlay
-            ];
+          devShells.default = pkgs.mkShell {
+            packages = with pkgs; [ cargo rustc rustfmt rustup clippy gcc libiconv ];
           };
-        in
-        {
-          format = pkgs.runCommand "check-format"
-            {
-              buildInputs = with pkgs; [ rustfmt cargo ];
-            } ''
-            ${pkgs.rustfmt}/bin/cargo-fmt fmt --manifest-path ${./.}/Cargo.toml -- --check
-            ${pkgs.nixpkgs-fmt}/bin/nixpkgs-fmt --check ${./.}
-            touch $out # it worked!
-          '';
-          "${cargoToml.package.name}" = pkgs."${cargoToml.package.name}";
-        });
-      devShell = forAllSystems (system:
-        let
-          pkgs = import nixpkgs {
-            inherit system;
-            overlays = [ self.overlay ];
+
+          apps = {
+            default = {
+              program = "${config.packages.default}/bin/${package.name}";
+              type = "app";
+            };
           };
-        in
-        pkgs.mkShell {
-          inputsFrom = with pkgs; [
-            pkgs."${cargoToml.package.name}"
-          ];
-          buildInputs = with pkgs; [
-            rustfmt
-            nixpkgs-fmt
-          ];
-          LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
-        });
+        };
     };
 }

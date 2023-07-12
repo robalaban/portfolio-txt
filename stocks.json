@@ -1,0 +1,18 @@
+[
+  {
+    "ticker": "AAPL",
+    "purchased_date": "2023-07-08",
+    "purchase_price": 150.0,
+    "quantity": 10,
+    "dividend": 0.82,
+    "dividend_pay_date": "2023-08-08"
+  },
+  {
+    "ticker": "MSFT",
+    "purchased_date": "2023-07-09",
+    "purchase_price": 250.0,
+    "quantity": 10,
+    "dividend": 0.82,
+    "dividend_pay_date": "2023-08-08"
+  }
+]
